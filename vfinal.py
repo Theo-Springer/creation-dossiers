@@ -26,7 +26,7 @@ else:
     DOSSIER_APP = Path(__file__).parent
 
 INTERDITS = '\\/:*?"<>|'
-VERSION = "v1.1.0"
+VERSION = "v1.1.1"
 URL_RELEASE = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
 
 
