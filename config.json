@@ -1,13 +1,19 @@
 {
-  "chemin_devis": "Devis",
-  "chiffres_numero": 5,
-  "initiales": ["ELS", "ABC", "XYZ"],
+  "chemin_devis": "test-DEVIS",
   "sous_dossiers": [
-    "Photo",
-    "Offre commerciale",
-    "Offre fournisseur",
-    "Échanges mail",
+    "BORDEREAUX DE PRIX",
     "CDC",
-    "Bordereaux de prix"
-  ]
+    "MAIL",
+    "OFFRE COMMERCIALE",
+    "OFFRE FOURNISSEUR",
+    "PHOTOS"
+  ],
+  "excel": {
+    "chemin": "DEVIS NUMERO CHRONO SUIVIT/DEVIS NUMERO CHRONO.xlsx",
+    "feuille": "",
+    "premiere_ligne": 1500,
+    "colonne_client": "A",
+    "colonne_affaire": "B",
+    "colonne_objet": "C"
+  }
 }
