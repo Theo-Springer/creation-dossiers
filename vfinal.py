@@ -6,7 +6,6 @@ import sys
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-
 # ============================================================
 # Réglages : lus depuis config.json
 # ============================================================
@@ -18,7 +17,17 @@ else:
     DOSSIER_APP = Path(__file__).parent
 
 INTERDITS = '\\/:*?"<>|'
+VERSION = "v1.1.0"
 
+def auto_update():
+    import urllib.request
+    import json
+    url = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
+    reponse = urllib.request.urlopen(url, timeout=5)
+    data = json.loads(reponse.read().decode("utf-8"))
+    version_dispo = data["tag_name"]
+    if version_dispo > VERSION:
+        messagebox.showinfo("Mise à jour disponible", f"Une nouvelle version est disponible : {version_dispo}\n\nTélécharge-la sur GitHub.")
 
 def erreur_fatale(titre, message):
     """Affiche une erreur puis ferme le programme (utilisée avant que la fenêtre existe)."""
@@ -90,10 +99,10 @@ def verifier(client, numero, initiales, objet):
         erreurs.append(f"L'objet contient un caractère interdit ({INTERDITS}) ou finit par un point")
 
     dossier_client = BASE / client
-    if numero_valide and client != "" and dossier_client.is_dir():
-        for dossier in dossier_client.iterdir():
-            if dossier.is_dir() and dossier.name.startswith(numero):
-                erreurs.append(f"Le numéro d'affaire existe déjà : {dossier.name}")
+    if numero_valide:
+        for dossier in BASE.glob(f"*/{numero}*"):
+            if dossier.is_dir():
+                erreurs.append(f"Le numéro d'affaire existe déjà chez {dossier.parent.name} : {dossier.name}")
                 break
 
     return erreurs
@@ -222,4 +231,5 @@ bouton = ttk.Button(fenetre, text="Créer", command=on_creer)
 bouton.grid(row=4, column=1, sticky="e", padx=8, pady=10)
 
 champ_client.focus()
+auto_update()      # vérifie si une nouvelle version est disponible sur GitHub
 fenetre.mainloop()
