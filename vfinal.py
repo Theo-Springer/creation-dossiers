@@ -7,6 +7,14 @@ import tkinter as tk
 import urllib.request
 from tkinter import ttk, messagebox
 
+# Fait vérifier les certificats HTTPS par Windows plutôt que par Python :
+# indispensable sur un réseau d'entreprise qui inspecte le trafic HTTPS
+try:
+    import truststore
+    truststore.inject_into_ssl()
+except ImportError:
+    pass
+
 # ============================================================
 # Réglages : lus depuis config.json
 # ============================================================
