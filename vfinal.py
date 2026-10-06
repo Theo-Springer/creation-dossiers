@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 import tkinter as tk
+import urllib.request
 from tkinter import ttk, messagebox
 
 # ============================================================
@@ -18,16 +19,89 @@ else:
 
 INTERDITS = '\\/:*?"<>|'
 VERSION = "v1.1.0"
+URL_RELEASE = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
+
+
+# ============================================================
+# Mise à jour automatique
+# ============================================================
+
+def version_en_nombres(version):
+    """'v1.10.0' -> (1, 10, 0) : permet de comparer 1.10 et 1.9 correctement."""
+    return tuple(int(morceau) for morceau in version.lstrip("vV").split("."))
+
+
+def nettoyer_ancienne_version():
+    """Supprime le .old laissé par la mise à jour précédente."""
+    if not getattr(sys, "frozen", False):
+        return
+    ancien = Path(sys.executable).with_suffix(".old")
+    try:
+        ancien.unlink(missing_ok=True)
+    except OSError:
+        pass        # encore verrouillé : on réessaiera au prochain lancement
+
+
+def installer_mise_a_jour(url_exe):
+    """Télécharge le nouveau .exe, prend la place de l'ancien et relance le programme."""
+    exe = Path(sys.executable)
+    nouveau = exe.with_name(exe.stem + "_nouveau.exe")
+    ancien = exe.with_suffix(".old")
+
+    try:
+        urllib.request.urlretrieve(url_exe, nouveau)
+        ancien.unlink(missing_ok=True)
+        exe.rename(ancien)          # Windows accepte de renommer un .exe en cours d'exécution
+        nouveau.rename(exe)
+    except OSError as erreur:
+        # Échec : on remet tout en place et le programme continue normalement
+        if not exe.exists() and ancien.exists():
+            ancien.rename(exe)
+        nouveau.unlink(missing_ok=True)
+        messagebox.showerror("Mise à jour impossible", f"La mise à jour a échoué :\n\n{erreur}")
+        return
+
+    # Relance la nouvelle version (les deux réglages évitent qu'elle réutilise
+    # les fichiers temporaires de l'ancienne version, propres à PyInstaller)
+    env = os.environ.copy()
+    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+    env.pop("_MEIPASS2", None)
+    subprocess.Popen([str(exe)], env=env)
+    fenetre.destroy()
+    sys.exit()
+
 
 def auto_update():
-    import urllib.request
-    import json
-    url = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
-    reponse = urllib.request.urlopen(url, timeout=5)
-    data = json.loads(reponse.read().decode("utf-8"))
-    version_dispo = data["tag_name"]
-    if version_dispo > VERSION:
-        messagebox.showinfo("Mise à jour disponible", f"Une nouvelle version est disponible : {version_dispo}\n\nTélécharge-la sur GitHub.")
+    """Vérifie sur GitHub si une version plus récente existe et propose de l'installer."""
+    try:
+        with urllib.request.urlopen(URL_RELEASE, timeout=5) as reponse:
+            data = json.loads(reponse.read().decode("utf-8"))
+        version_dispo = data["tag_name"]
+        if version_en_nombres(version_dispo) <= version_en_nombres(VERSION):
+            return
+        url_exe = None
+        for fichier in data["assets"]:
+            if fichier["name"].lower().endswith(".exe"):
+                url_exe = fichier["browser_download_url"]
+                break
+    except Exception as erreur:
+        # Pas de réseau, GitHub indisponible, réponse inattendue :
+        # la vérification ne doit jamais empêcher le programme de fonctionner
+        print(f"Vérification de mise à jour impossible : {erreur}")
+        return
+
+    if url_exe is None:
+        return      # release publiée sans .exe attaché : rien à installer
+
+    if not getattr(sys, "frozen", False):
+        # Lancé avec Python : on ne remplace rien (sys.executable serait python.exe)
+        messagebox.showinfo("Mise à jour disponible", f"Version {version_dispo} disponible (mode script : pas d'installation).")
+        return
+
+    if messagebox.askyesno("Mise à jour disponible",
+                           f"La version {version_dispo} est disponible (tu as la {VERSION}).\n\nL'installer maintenant ?"):
+        installer_mise_a_jour(url_exe)
+
 
 def erreur_fatale(titre, message):
     """Affiche une erreur puis ferme le programme (utilisée avant que la fenêtre existe)."""
@@ -98,7 +172,6 @@ def verifier(client, numero, initiales, objet):
     elif nom_interdit(objet):
         erreurs.append(f"L'objet contient un caractère interdit ({INTERDITS}) ou finit par un point")
 
-    dossier_client = BASE / client
     if numero_valide:
         for dossier in BASE.glob(f"*/{numero}*"):
             if dossier.is_dir():
@@ -200,6 +273,8 @@ def on_creer():
         ouvrir_dossier(chemin)
 
 
+nettoyer_ancienne_version()
+
 fenetre = tk.Tk()
 fenetre.title("Création de dossier d'affaire")
 
@@ -231,5 +306,5 @@ bouton = ttk.Button(fenetre, text="Créer", command=on_creer)
 bouton.grid(row=4, column=1, sticky="e", padx=8, pady=10)
 
 champ_client.focus()
-auto_update()      # vérifie si une nouvelle version est disponible sur GitHub
+fenetre.after(500, auto_update)     # vérifie les mises à jour une fois la fenêtre affichée
 fenetre.mainloop()
