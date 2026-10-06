@@ -1,0 +1,13 @@
+{
+  "chemin_devis": "test-DEVIS",
+  "chiffres_numero": 5,
+  "initiales": ["ELS", "ABC", "XYZ"],
+  "sous_dossiers": [
+    "Photo",
+    "Offre commerciale",
+    "Offre fournisseur",
+    "Échanges mail",
+    "CDC",
+    "Bordereaux de prix"
+  ]
+}
