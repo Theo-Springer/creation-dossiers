@@ -1,5 +1,5 @@
 {
-  "chemin_devis": "test-DEVIS",
+  "chemin_devis": "Devis",
   "sous_dossiers": [
     "BORDEREAUX DE PRIX",
     "CDC",
@@ -9,7 +9,7 @@
     "PHOTOS"
   ],
   "excel": {
-    "chemin": "DEVIS NUMERO CHRONO SUIVIT/DEVIS NUMERO CHRONO.xlsx",
+    "chemin": "DEVIS NUMERO CHRONO SUIVI/DEVIS NUMERO CHRONO A.xlsx",
     "feuille": "",
     "premiere_ligne": 1500,
     "colonne_client": "A",
