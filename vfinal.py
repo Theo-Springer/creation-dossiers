@@ -57,7 +57,7 @@ def liste_clients():
     for dossier in BASE.iterdir():
         if dossier.is_dir():
             clients.append(dossier.name)
-    return sorted(clients)
+    return sorted(clients, key=str.upper)   # key=str.upper : trie sans tenir compte des majuscules
 
 
 def nom_interdit(texte):
@@ -120,8 +120,47 @@ def ouvrir_dossier(chemin):
 # Interface graphique
 # ============================================================
 
+def filtrer_clients(event):
+    """À chaque touche tapée dans le champ client, ne garde que les clients qui contiennent la saisie."""
+    if event.keysym in ("Up", "Down", "Return", "Escape", "Tab"):
+        return      # ces touches servent à naviguer, pas à écrire
+    saisie = champ_client.get().upper().strip()
+    resultats = []
+    for client in tous_les_clients:
+        if saisie in client.upper():
+            resultats.append(client)
+    champ_client["values"] = resultats
+
+
+def activer_saut_clavier(combobox):
+    """Liste ouverte : taper des lettres saute au premier client qui commence par ces lettres."""
+    # La liste qui s'ouvre sous la Combobox est un widget interne de tkinter : on récupère son nom
+    liste = combobox.tk.call("ttk::combobox::PopdownWindow", combobox) + ".f.l"
+    memoire = {"texte": "", "temps": 0}
+
+    def sauter(lettre, temps):
+        temps = int(temps)
+        if lettre == "" or not lettre.isprintable():
+            return      # Entrée, flèches, Maj... : on laisse tkinter les gérer
+        if temps - memoire["temps"] > 1000:     # plus d'une seconde depuis la dernière touche : on repart de zéro
+            memoire["texte"] = ""
+        memoire["texte"] += lettre.upper()
+        memoire["temps"] = temps
+        for i, client in enumerate(combobox["values"]):
+            if client.upper().startswith(memoire["texte"]):
+                combobox.tk.call(liste, "selection", "clear", 0, "end")
+                combobox.tk.call(liste, "selection", "set", i)
+                combobox.tk.call(liste, "activate", i)
+                combobox.tk.call(liste, "see", i)
+                break
+
+    commande = combobox.register(sauter)
+    combobox.tk.call("bind", liste, "<KeyPress>", f"+{commande} %A %t")
+
+
 def on_creer():
     """Lancée au clic sur le bouton Créer."""
+    global tous_les_clients
     client = nettoyer(champ_client.get())
     numero = champ_numero.get().strip()
     initiales = nettoyer(champ_initiales.get())
@@ -143,7 +182,8 @@ def on_creer():
         messagebox.showerror("Création impossible", str(erreur))
         return
 
-    champ_client["values"] = liste_clients()    # pour qu'un nouveau client apparaisse dans la liste
+    tous_les_clients = liste_clients()      # pour qu'un nouveau client apparaisse dans la liste
+    champ_client["values"] = tous_les_clients
     champ_numero.delete(0, tk.END)
     champ_objet.delete(0, tk.END)
 
@@ -158,9 +198,13 @@ if not BASE.is_dir():
     messagebox.showerror("Dossier introuvable", f"Le dossier {BASE} est introuvable.")
     sys.exit()
 
+tous_les_clients = liste_clients()      # la liste complète, lue une fois au démarrage
+
 ttk.Label(fenetre, text="Client :").grid(row=0, column=0, sticky="w", padx=8, pady=5)
-champ_client = ttk.Combobox(fenetre, values=liste_clients(), width=40)
+champ_client = ttk.Combobox(fenetre, values=tous_les_clients, width=40)
 champ_client.grid(row=0, column=1, padx=8, pady=5)
+champ_client.bind("<KeyRelease>", filtrer_clients)
+activer_saut_clavier(champ_client)
 
 ttk.Label(fenetre, text="N° d'affaire :").grid(row=1, column=0, sticky="w", padx=8, pady=5)
 champ_numero = ttk.Entry(fenetre, width=43)
