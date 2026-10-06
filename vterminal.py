@@ -47,16 +47,11 @@ def verifier(client,devis, initiales, objet):
                 break
     return erreurs
 
-#erreurs = verifier(client, devis, initiales, objet)
-#if erreurs:
+erreurs = verifier(client, devis, initiales, objet)
+if erreurs:
     for erreur in erreurs:
         print(erreur)
-#else:
+else:
     print("Aucune erreur trouvée.")
     cree_dossier_affaire()
     print("dossier créé : " + num_affaire)
-
-
-fenetre = tk.Tk()
-fenetre.title("Création de dossier d'affaire")
-
