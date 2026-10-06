@@ -18,9 +18,7 @@ else:
     DOSSIER_APP = Path(__file__).parent
 
 INTERDITS = '\\/:*?"<>|'
-<<<<<<< HEAD
-=======
-VERSION = "v1.1.1"
+VERSION = "v1.2.0"
 URL_RELEASE = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
 
 
@@ -103,7 +101,6 @@ def auto_update():
     if messagebox.askyesno("Mise à jour disponible",
                            f"La version {version_dispo} est disponible (tu as la {VERSION}).\n\nL'installer maintenant ?"):
         installer_mise_a_jour(url_exe)
->>>>>>> origin/main
 
 
 def erreur_fatale(titre, message):
