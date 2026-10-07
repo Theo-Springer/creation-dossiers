@@ -4,6 +4,8 @@ import os
 import subprocess
 import sys
 import tkinter as tk
+import time
+import threading
 from tkinter import ttk, messagebox
 
 
@@ -18,89 +20,7 @@ else:
     DOSSIER_APP = Path(__file__).parent
 
 INTERDITS = '\\/:*?"<>|'
-VERSION = "v1.2.0"
-URL_RELEASE = "https://api.github.com/repos/Theo-Springer/creation-dossiers/releases/latest"
-
-
-# ============================================================
-# Mise à jour automatique
-# ============================================================
-
-def version_en_nombres(version):
-    """'v1.10.0' -> (1, 10, 0) : permet de comparer 1.10 et 1.9 correctement."""
-    return tuple(int(morceau) for morceau in version.lstrip("vV").split("."))
-
-
-def nettoyer_ancienne_version():
-    """Supprime le .old laissé par la mise à jour précédente."""
-    if not getattr(sys, "frozen", False):
-        return
-    ancien = Path(sys.executable).with_suffix(".old")
-    try:
-        ancien.unlink(missing_ok=True)
-    except OSError:
-        pass        # encore verrouillé : on réessaiera au prochain lancement
-
-
-def installer_mise_a_jour(url_exe):
-    """Télécharge le nouveau .exe, prend la place de l'ancien et relance le programme."""
-    exe = Path(sys.executable)
-    nouveau = exe.with_name(exe.stem + "_nouveau.exe")
-    ancien = exe.with_suffix(".old")
-
-    try:
-        urllib.request.urlretrieve(url_exe, nouveau)
-        ancien.unlink(missing_ok=True)
-        exe.rename(ancien)          # Windows accepte de renommer un .exe en cours d'exécution
-        nouveau.rename(exe)
-    except OSError as erreur:
-        # Échec : on remet tout en place et le programme continue normalement
-        if not exe.exists() and ancien.exists():
-            ancien.rename(exe)
-        nouveau.unlink(missing_ok=True)
-        messagebox.showerror("Mise à jour impossible", f"La mise à jour a échoué :\n\n{erreur}")
-        return
-
-    # Relance la nouvelle version (les deux réglages évitent qu'elle réutilise
-    # les fichiers temporaires de l'ancienne version, propres à PyInstaller)
-    env = os.environ.copy()
-    env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
-    env.pop("_MEIPASS2", None)
-    subprocess.Popen([str(exe)], env=env)
-    fenetre.destroy()
-    sys.exit()
-
-
-def auto_update():
-    """Vérifie sur GitHub si une version plus récente existe et propose de l'installer."""
-    try:
-        with urllib.request.urlopen(URL_RELEASE, timeout=5) as reponse:
-            data = json.loads(reponse.read().decode("utf-8"))
-        version_dispo = data["tag_name"]
-        if version_en_nombres(version_dispo) <= version_en_nombres(VERSION):
-            return
-        url_exe = None
-        for fichier in data["assets"]:
-            if fichier["name"].lower().endswith(".exe"):
-                url_exe = fichier["browser_download_url"]
-                break
-    except Exception as erreur:
-        # Pas de réseau, GitHub indisponible, réponse inattendue :
-        # la vérification ne doit jamais empêcher le programme de fonctionner
-        print(f"Vérification de mise à jour impossible : {erreur}")
-        return
-
-    if url_exe is None:
-        return      # release publiée sans .exe attaché : rien à installer
-
-    if not getattr(sys, "frozen", False):
-        # Lancé avec Python : on ne remplace rien (sys.executable serait python.exe)
-        messagebox.showinfo("Mise à jour disponible", f"Version {version_dispo} disponible (mode script : pas d'installation).")
-        return
-
-    if messagebox.askyesno("Mise à jour disponible",
-                           f"La version {version_dispo} est disponible (tu as la {VERSION}).\n\nL'installer maintenant ?"):
-        installer_mise_a_jour(url_exe)
+version = "1.3.0"
 
 
 def erreur_fatale(titre, message):
@@ -322,11 +242,10 @@ def filtrer_clients(event):
 
 def activer_saut_clavier(combobox):
     """Liste ouverte : taper des lettres saute au premier client qui commence par ces lettres."""
-    # La liste qui s'ouvre sous la Combobox est un widget interne de tkinter : on récupère son nom
-    liste = combobox.tk.call("ttk::combobox::PopdownWindow", combobox) + ".f.l"
-    memoire = {"texte": "", "temps": 0}
+    memoire = {"texte": "", "temps": 0, "liste": None}
 
     def sauter(lettre, temps):
+        liste = memoire["liste"]
         temps = int(temps)
         if lettre == "" or not lettre.isprintable():
             return      # Entrée, flèches, Maj... : on laisse tkinter les gérer
@@ -343,7 +262,32 @@ def activer_saut_clavier(combobox):
                 break
 
     commande = combobox.register(sauter)
-    combobox.tk.call("bind", liste, "<KeyPress>", f"+{commande} %A %t")
+
+    def chercher_liste(widget):
+        """Cherche la liste (Listbox) parmi les widgets internes de la Combobox, quel que soit son nom."""
+        if combobox.tk.call("winfo", "class", widget) == "Listbox":
+            return widget
+        for enfant in combobox.tk.splitlist(combobox.tk.call("winfo", "children", widget)):
+            trouve = chercher_liste(enfant)
+            if trouve:
+                return trouve
+        return None
+
+    def preparer():
+        """Lancée à chaque ouverture de la liste : branche le saut clavier la première fois."""
+        if memoire["liste"]:
+            return      # déjà branché
+        try:
+            fenetre_liste = combobox.tk.call("ttk::combobox::PopdownWindow", combobox)
+            liste = chercher_liste(fenetre_liste)
+            if liste:
+                combobox.tk.call("bind", liste, "<KeyPress>", f"+{commande} %A %t")
+                memoire["liste"] = liste
+        except tk.TclError:
+            pass        # en cas d'échec, la liste marche quand même, juste sans saut clavier
+
+    # postcommand : fonction appelée juste avant que la liste s'ouvre
+    combobox.configure(postcommand=preparer)
 
 
 def tableau(parent, colonnes, ligne):
@@ -404,30 +348,48 @@ def afficher_apercu(a_creer, problemes):
 
 
 def on_comparer():
-    """Lancée au clic sur Comparer avec l'Excel."""
     if EXCEL is None:
         messagebox.showerror("Excel non configuré", "Il manque la section « excel » dans config.json.")
         return
 
-    fenetre.config(cursor="watch")      # curseur d'attente : la lecture peut prendre quelques secondes
-    fenetre.update()
-    try:
-        a_creer, problemes = comparer_excel()
-    except FileNotFoundError:
+    bouton_excel.state(["disabled"])
+    fenetre.config(cursor="watch")
+    resultat = {}
+
+    def travail():
+        try:
+            resultat["donnees"] = comparer_excel()
+        except Exception as erreur:
+            resultat["erreur"] = erreur
+
+    thread = threading.Thread(target=travail, daemon=True)
+    thread.start()
+    fenetre.after(100, surveiller, thread, resultat)
+
+
+def surveiller(thread, resultat):
+    if thread.is_alive():
+        fenetre.after(100, surveiller, thread, resultat)
+        return
+
+    bouton_excel.state(["!disabled"])
+    fenetre.config(cursor="")
+
+    erreur = resultat.get("erreur")
+    if isinstance(erreur, FileNotFoundError):
         messagebox.showerror("Excel introuvable", f"Le fichier {DOSSIER_APP / EXCEL['chemin']} est introuvable.")
         return
-    except PermissionError:
+    if isinstance(erreur, PermissionError):
         messagebox.showerror("Excel inaccessible", "Le fichier Excel est verrouillé. Réessaie dans un instant.")
         return
-    except KeyError:
+    if isinstance(erreur, KeyError):
         messagebox.showerror("Feuille introuvable", f"La feuille « {EXCEL['feuille']} » n'existe pas dans l'Excel.")
         return
-    except Exception as erreur:         # fichier abîmé, ancien format .xls, colonne mal écrite dans config.json...
+    if erreur is not None:
         messagebox.showerror("Lecture impossible", f"Impossible de lire l'Excel :\n{erreur}")
         return
-    finally:
-        fenetre.config(cursor="")       # finally : on remet le curseur normal dans tous les cas
 
+    a_creer, problemes = resultat["donnees"]
     if not a_creer and not problemes:
         messagebox.showinfo("Comparaison avec l'Excel", "Tout est à jour : aucun dossier à créer.")
     else:

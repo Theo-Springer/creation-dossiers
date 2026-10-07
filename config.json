@@ -9,11 +9,11 @@
     "PHOTOS"
   ],
   "excel": {
-    "chemin": "DEVIS NUMERO CHRONO SUIVI/DEVIS NUMERO CHRONO A.xlsx",
+    "chemin": "DEVIS NUMERO CHRONO SUIVI/DEVIS SUIVI NUMERO CHRONO A.xlsx",
     "feuille": "",
-    "premiere_ligne": 1500,
-    "colonne_client": "A",
-    "colonne_affaire": "B",
-    "colonne_objet": "C"
+    "premiere_ligne": 10250,
+    "colonne_client": "D",
+    "colonne_affaire": "G",
+    "colonne_objet": "I"
   }
 }
