@@ -186,8 +186,6 @@ def comparer_excel():
     """Trie les lignes de l'Excel en deux listes : à créer, à corriger. Les affaires existantes sont ignorées."""
     existants = numeros_existants()
 
-    # Pour retrouver le vrai nom du dossier quel que soit l'écriture dans l'Excel :
-    # "DUPONT INDUSTRIE" -> "Dupont Industrie"
     clients = {}
     for nom in liste_clients():
         clients[nettoyer(nom)] = nom
