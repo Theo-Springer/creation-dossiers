@@ -4,7 +4,6 @@ import os
 import subprocess
 import sys
 import tkinter as tk
-import time
 import threading
 from tkinter import ttk, messagebox
 
@@ -389,7 +388,7 @@ def surveiller(thread, resultat):
 
     a_creer, problemes = resultat["donnees"]
     if not a_creer and not problemes:
-        messagebox.showinfo("Comparaison avec l'Excel", "Tout est à jour : aucun dossier à créer.")
+        messagebox.showinfo("Comparaison avec l'Excel", "Tout est à jour : aucun dossier à créer. Pensez à vérifier que l'Excel a bien été enregistré.")
     else:
         afficher_apercu(a_creer, problemes)
 
