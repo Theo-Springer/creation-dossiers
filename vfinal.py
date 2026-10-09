@@ -180,14 +180,37 @@ def lire_excel():
 
     return lignes
 
+def cles_client(nom_dossier):
+    cles = [nettoyer(nom_dossier)]
+    avant, parenthese, apres = nom_dossier.partition("(")
+    if not parenthese:
+        return cles
+
+    nom_court = nettoyer(avant)
+    if nom_court:
+        cles.append(nom_court)
+
+    apres = nettoyer(apres).removesuffix(")").strip()
+    if apres.startswith("EX") and not apres[2:3].isalpha():
+        ancien = apres[2:]
+        while ancien and not ancien[0].isalnum():
+            ancien = ancien[1:]
+        if ancien:
+            cles.append(ancien)
+    return cles
 
 def comparer_excel():
     """Trie les lignes de l'Excel en deux listes : à créer, à corriger. Les affaires existantes sont ignorées."""
     existants = numeros_existants()
 
     clients = {}
+    ambigus = set()
     for nom in liste_clients():
-        clients[nettoyer(nom)] = nom
+        for cle in cles_client(nom):
+            if cle in clients and clients[cle] != nom:
+                ambigus.add(cle)
+            else:
+                clients[cle] = nom
 
     a_creer = []
     problemes = []
@@ -207,7 +230,12 @@ def comparer_excel():
             continue
         deja_vus.add(numero)
 
-        nom_client = clients.get(nettoyer(client))      # None si le client n'a pas de dossier
+        cle = nettoyer(client)
+        if cle in ambigus:
+            problemes.append((numero_ligne, f"Client ambigu : plusieurs dossiers correspondent à {client}"))
+            continue
+
+        nom_client = clients.get(cle)
         if nom_client is None:
             problemes.append((numero_ligne, f"Client introuvable : {client}"))
             continue
